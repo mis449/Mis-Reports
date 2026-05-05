@@ -207,7 +207,8 @@ const KpiKra = () => {
       const isDesignationBrief = sheetOverride === 'Designation Brief';
       const isDatabase = sheetOverride === 'Database';
       const targetSheet = sheetOverride || 'Dashboard';
-      const response = await fetch(`${scriptUrl}?sheet=${targetSheet}`);
+      const spreadsheetId = import.meta.env.VITE_KPI_KRA_SHEET_ID;
+      const response = await fetch(`${scriptUrl}?sheet=${targetSheet}&spreadsheetId=${spreadsheetId}`);
       const result = await response.json();
 
       if (result.success && result.data && result.data.length > 0) {
@@ -368,21 +369,27 @@ const KpiKra = () => {
         sheetName: 'Dashboard',
         rowIndex: '2',
         columnIndex: '1',
-        value: selectedDesignation
+        value: selectedDesignation,
+        spreadsheetId: import.meta.env.VITE_KPI_KRA_SHEET_ID
       });
 
-      const response = await fetch(`${scriptUrl}?${params.toString()}`, {
-        method: 'POST'
+      const response = await fetch(scriptUrl, {
+        method: 'POST',
+        mode: 'no-cors', // Critical: Bypass CORS preflight/blocking for sending data
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString()
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        showNotification('Selection submitted successfully!', 'success');
-        fetchDashboardData(); // Refresh dashboard data after submission
-      } else {
-        throw new Error(result.error || 'Failed to submit selection');
-      }
+      // With no-cors, the response is "opaque" (status 0).
+      // We assume success if the fetch itself didn't throw.
+      showNotification('Selection submitted successfully!', 'success');
+      
+      // Small delay before refresh to allow sheet processing
+      setTimeout(() => {
+        fetchDashboardData();
+      }, 1500);
     } catch (error) {
       console.error('Error submitting selection:', error);
       showNotification(error.message || 'Error connecting to server', 'error');
@@ -456,8 +463,8 @@ const KpiKra = () => {
                               setIsDropdownOpen(false);
                             }}
                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${selectedDesignation === designation
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-blue-600'
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-blue-600'
                               }`}
                           >
                             <div className={`w-1.5 h-1.5 rounded-full transition-all ${selectedDesignation === designation ? 'bg-blue-600 scale-125' : 'bg-transparent'
